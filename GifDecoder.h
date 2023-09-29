@@ -2,13 +2,17 @@
 #define _GIFDECODER_H_
 
 #define NO_IMAGEDATA 2
-#define USE_PALETTE565
 
 #include <stdint.h>
 
 typedef void (*callback)(void);
 typedef void (*pixel_callback)(int16_t x, int16_t y, uint8_t red, uint8_t green, uint8_t blue);
+#ifdef USE_PALETTE565
 typedef void (*line_callback)(int16_t x, int16_t y, uint8_t *buf, int16_t wid, uint16_t *palette565, int16_t skip);
+#else
+typedef void (*line_callback)(int16_t x, int16_t y, uint8_t *buf, int16_t wid, rgb_24 *palette24, int16_t skip);
+#endif
+
 typedef void* (*get_buffer_callback)(void);
 
 typedef bool (*file_seek_callback)(unsigned long position);

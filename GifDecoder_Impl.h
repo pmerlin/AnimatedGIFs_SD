@@ -872,7 +872,11 @@ void GifDecoder<maxGifWidth, maxGifHeight, lzwMaxBits>::decompressAndDisplayFram
             int wid = (disposalMethod == DISPOSAL_BACKGROUND) ? lsdWidth : tbiWidth;
             int skip = (disposalMethod == DISPOSAL_BACKGROUND) ? -1 : transparentColorIndex;;
             if (drawLineCallback) {
+#if defined(USE_PALETTE565)
                 (*drawLineCallback)(xofs, line + tbiImageY, imageBuf + xofs, wid, palette565, skip);
+#else                
+                (*drawLineCallback)(xofs, line + tbiImageY, imageBuf + xofs, wid, palette, skip);
+#endif
             } else if (drawPixelCallback) {
                 for (int x = 0; x < wid; x++) {
                     uint8_t pixel = imageBuf[x + xofs];

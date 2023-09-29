@@ -7,6 +7,7 @@
 */
 
 #include "FilenameFunctions.h"    //defines USE_SPIFFS as reqd
+#define USE_SPIFFS
 
 #if defined (ARDUINO)
 #ifdef USE_SPIFFS

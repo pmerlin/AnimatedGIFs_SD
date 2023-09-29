@@ -1,17 +1,47 @@
 // please read credits at the bottom of file
 
-#define USE_TFT_LIB 0xE8266
-
+//#define USE_TFT_LIB 0xE8266
+#include <avr/pgmspace.h> 
+#include <arduino.h>
+#include <FastLED.h>
 #ifndef min
 #define min(a, b) (((a) <= (b)) ? (a) : (b))
 #endif
-#include "GifDecoder.h"
+
+
+#define WIDTH 16
+#define HEIGHT 16
+#define LZWMAXBITS 12
+#define NUM_LEDS (WIDTH * HEIGHT)
+#define BORDER_WIDTH 1
+#define USE_PALETTE565
+//#include "GifDecoder.h"
+#include "GifDecoder_Impl.h"
+#include "LzwDecoder_Impl.h"
+//template class GifDecoder<480, 320, 12>;   // .kbv tell the world.
+template class GifDecoder<WIDTH, HEIGHT, LZWMAXBITS>;   // .kbv tell the world.
+
+
 #include "FilenameFunctions.h"    //defines USE_SPIFFS
+
 
 #define DISPLAY_TIME_SECONDS 100  //
 #define NUMBER_FULL_CYCLES     3  //
-#define GIFWIDTH             480  //228 fails on COW_PAINT.  Edit class_implementation.cpp
+#define GIFWIDTH             16  //228 fails on COW_PAINT.  Edit class_implementation.cpp
 #define FLASH_SIZE      512*1024  //     
+
+
+#define BRIGHTNESS 20
+#define COLOR_ORDER GRB
+#define FAST_LED_CHIPSET WS2811
+#define FASTLED_DATA_PIN D6 // (D1)
+#define ACCESS_POINT "wemos16x16"
+
+
+CRGB leds[NUM_LEDS];
+
+#include "fastled-matrix.h"
+
 
 /*  template parameters are maxGifWidth, maxGifHeight, lzwMaxBits
 
@@ -20,7 +50,10 @@
     All 32x32-pixel GIFs tested work with 11, most work with 10
 */
 
-GifDecoder<GIFWIDTH, 320, 12> decoder;
+GifDecoder<WIDTH, HEIGHT, LZWMAXBITS> decoder;
+
+#define USE_SPIFFS
+#define SD_CS D5
 
 #if defined(USE_SPIFFS)
 #define GIF_DIRECTORY "/"     //ESP8266 SPIFFS
@@ -32,7 +65,6 @@ GifDecoder<GIFWIDTH, 320, 12> decoder;
 #define DISKCOLOUR   BLUE
 #endif
 
-#include "USE_TFT_LIB.h"
 
 // Assign human-readable names to some common 16-bit color values:
 #define BLACK   0x0000
@@ -51,12 +83,15 @@ long skipCount; //.kbv
 long lineTime;  //.kbv
 int32_t parse_start; //.kbv
 
+
+#include "gif16.h"
+/*
 #include "gifs_128.h"
 #include "wrong_gif.h"
 #include "llama_gif.h"
 #include "mad_man_gif.h"
 #include "mad_race_gif.h"
-
+*/
 
 #define M0(x) {x, #x, sizeof(x)}
 typedef struct {
@@ -67,7 +102,7 @@ typedef struct {
 gif_detail_t gifs[] = {
 #if FLASH_SIZE >= 1024 * 1024      //Teensy4.0, ESP32, F767, L476
 
-    M0(llama_driver_gif),          //758945
+//    M0(llama_driver_gif),          //758945
     M0(teakettle_128x128x10_gif),  // 21155
     M0(bottom_128x128x17_gif),     // 51775
     M0(globe_rotating_gif),        // 90533
@@ -77,12 +112,14 @@ gif_detail_t gifs[] = {
     //    M0(marilyn_240x240_gif),       // 40843
     //    M0(cliff_100x100_gif),   //406564
 #elif FLASH_SIZE >= 512 * 1024     // Due, F446, ESP8266
-    M0(teakettle_128x128x10_gif),  // 21155
-    M0(bottom_128x128x17_gif),     // 51775
-    M0(globe_rotating_gif),        // 90533
-    M0(mad_race_gif),              //173301
+//    M0(teakettle_128x128x10_gif),  // 21155
+//    M0(bottom_128x128x17_gif),     // 51775
+//    M0(globe_rotating_gif),        // 90533
+    //M0(mad_race_gif),              //173301
     //    M0(marilyn_240x240_gif),       // 40843
-    M0(horse_128x96x8_gif),        //  7868
+//    M0(horse_128x96x8_gif),        //  7868
+    M0(E),
+    M0(Cat),
 #elif FLASH_SIZE >= 256 * 1024     //Teensy3.2, Zero
     M0(teakettle_128x128x10_gif),  // 21155
     M0(bottom_128x128x17_gif),     // 51775
@@ -97,6 +134,8 @@ gif_detail_t gifs[] = {
     M0(horse_128x96x8_gif),        //  7868
 #endif
 };
+
+
 
 const uint8_t *g_gif;
 uint32_t g_seek;
@@ -141,17 +180,56 @@ void updateScreenCallback(void) {
 }
 
 void drawPixelCallback(int16_t x, int16_t y, uint8_t red, uint8_t green, uint8_t blue) {
-    tft.drawPixel(x, y, tft.color565(red, green, blue));
+//    tft.drawPixel(x, y, tft.color565(red, green, blue));
+    drawPixel(XY(x,y),red, green, blue);
     plotCount++;
     rowCount = 1;
+    Serial.print("Pix ");
 }
 
-void drawLineCallback(int16_t x, int16_t y, uint8_t *buf, int16_t w, uint16_t *palette, int16_t skip) {
+void drawLineCallback24(int16_t x, int16_t y, uint8_t *buf, int16_t w, rgb_24 *palette, int16_t skip) {
     uint8_t pixel;
     bool first;
     int32_t t = micros();
+/*
     if (y >= tft.height() || x >= tft.width() ) return;
     if (x + w > tft.width()) w = tft.width() - x;
+*/    
+    if (w <= 0) return;
+    int16_t endx = x + w - 1;
+    rgb_24 buf24[w];
+    for (int i = 0; i < w; ) {
+        int n = 0;
+        while (i < w) {
+            pixel = buf[i++];
+            if (pixel == skip) {
+                skipCount++;
+                break;
+            }
+            buf24[n++] = palette[pixel];
+        }
+        if (n) {
+//            tft.setAddrWindow(x + i - n, y, endx, y);
+            first = true;
+//            tft.pushColors(buf565, n, first);
+            for (int x=0; x<n; x++)
+              drawPixel(XY(x+i-n,y),buf24[x].red, buf24[x].green, buf24[x].blue);
+        }
+    }
+    plotCount += w;  //count total pixels (including skipped)
+    rowCount += 1;   //count number of drawLines
+    lineTime += micros() - t;
+}
+
+
+void drawLineCallback565(int16_t x, int16_t y, uint8_t *buf, int16_t w, uint16_t *palette565, int16_t skip) {
+    uint8_t pixel;
+    bool first;
+    int32_t t = micros();
+/*
+    if (y >= tft.height() || x >= tft.width() ) return;
+    if (x + w > tft.width()) w = tft.width() - x;
+*/    
     if (w <= 0) return;
     int16_t endx = x + w - 1;
     uint16_t buf565[w];
@@ -163,17 +241,27 @@ void drawLineCallback(int16_t x, int16_t y, uint8_t *buf, int16_t w, uint16_t *p
                 skipCount++;
                 break;
             }
-            buf565[n++] = palette[pixel];
+            buf565[n++] = palette565[pixel];
         }
         if (n) {
-            tft.setAddrWindow(x + i - n, y, endx, y);
+//            tft.setAddrWindow(x + i - n, y, endx, y);
             first = true;
-            tft.pushColors(buf565, n, first);
+//            tft.pushColors(buf565, n, first);
+            for (int x=0; x<n; x++)
+            {
+                uint8_t r = ((((buf565[x] >> 11) & 0x1F) * 527) + 23) >> 6;
+                uint8_t g = ((((buf565[x] >> 5) & 0x3F) * 259) + 33) >> 6;
+                uint8_t b = (((buf565[x] & 0x1F) * 527) + 23) >> 6;
+
+              drawPixel(XY(x+i-n,y),r, g, b);
+            }
+
         }
     }
     plotCount += w;  //count total pixels (including skipped)
     rowCount += 1;   //count number of drawLines
     lineTime += micros() - t;
+//    Serial.print("Lin ");
 }
 
 // Setup method runs once, when the sketch starts
@@ -182,16 +270,42 @@ void setup() {
     Serial.begin(115200);
     while (!Serial) ;
     Serial.println("\nAnimatedGIFs_SD");
+/*    
     tft.begin(tft.readID());
     tft.setRotation(1);
     tft.fillScreen(BLACK);
+*/  
+    FastLED.addLeds<FAST_LED_CHIPSET, FASTLED_DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalSMD5050);
+  //  FastLED.addLeds<FAST_LED_CHIPSET, FASTLED_DATA_PIN>(leds, NUM_PIXELS).setCorrection(TypicalSMD5050);
+    FastLED.setBrightness(BRIGHTNESS);
+
+    leds[0] = CRGB(255, 0, 0); //0,1
+    leds[1] = CRGB(0, 255, 0); //0,2
+    leds[2] = CRGB(0, 255, 0); //0,3
+    leds[3] = CRGB(0, 0, 255);
+    leds[4] = CRGB(0, 0, 255);
+    leds[5] = CRGB(0, 0, 255);
+    drawPixel(0,0, RED);
+    drawPixel(0,1, GREEN);
+    drawPixel(1,1, GREEN);
+    drawPixel(0,2, BLUE);
+    drawPixel(1,2, BLUE);
+    drawPixel(2,2, BLUE);
+    FastLED.show(); 
+    Serial.println("initmatrix");
+    delay(1000);
+
     decoder.setScreenClearCallback(screenClearCallback);
     decoder.setUpdateScreenCallback(updateScreenCallback);
     decoder.setDrawPixelCallback(drawPixelCallback);
-    decoder.setDrawLineCallback(drawLineCallback);
-
+#if defined(USE_PALETTE565)
+    decoder.setDrawLineCallback(drawLineCallback565);
+#else
+    decoder.setDrawLineCallback(drawLineCallback24);
+#endif
     int ret = initSdCard(SD_CS);
     if (ret == 0) {
+        Serial.println("Using ");
         decoder.setFileSeekCallback(fileSeekCallback);
         decoder.setFilePositionCallback(filePositionCallback);
         decoder.setFileReadCallback(fileReadCallback);
@@ -217,8 +331,8 @@ void setup() {
     if (num_files == 0) sprintf(msg, "No GIFs on %s", GIF_DIRECTORY);
     Serial.println(msg);
     if (num_files > 0) return;
-    tft.fillScreen(RED);
-    tft.println(msg);
+//    tft.fillScreen(RED);
+//    tft.println(msg);
     while (1) delay(10);  //does a yield()
 }
 
@@ -269,10 +383,11 @@ void loop() {
         if (g_gif) good = (openGifFilenameByIndex_P(GIF_DIRECTORY, index) >= 0);
         else good = (openGifFilenameByIndex(GIF_DIRECTORY, index) >= 0);
         if (good >= 0) {
+            /*
             tft.fillScreen(g_gif ? MAGENTA : DISKCOLOUR);
             tft.fillRect(GIFWIDTH, 0, 1, tft.height(), WHITE);
             tft.fillRect(278, 0, 1, tft.height(), WHITE);
-
+*/
             decoder.startDecoding();
 
         }
@@ -280,6 +395,7 @@ void loop() {
 
     parse_start = micros();
     decoder.decodeFrame();
+    FastLED.show();
     yield();
     frame_time += micros() - parse_start; //count it even if housekeeping block
     if (decoder.getFrameNo() != 0) {  //don't count the header blocks.
