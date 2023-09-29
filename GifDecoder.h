@@ -5,6 +5,12 @@
 
 #include <stdint.h>
 
+typedef struct rgb_24 {
+    uint8_t red;
+    uint8_t green;
+    uint8_t blue;
+} rgb_24;
+
 typedef void (*callback)(void);
 typedef void (*pixel_callback)(int16_t x, int16_t y, uint8_t red, uint8_t green, uint8_t blue);
 #ifdef USE_PALETTE565
@@ -19,12 +25,6 @@ typedef bool (*file_seek_callback)(unsigned long position);
 typedef unsigned long (*file_position_callback)(void);
 typedef int (*file_read_callback)(void);
 typedef int (*file_read_block_callback)(void * buffer, int numberOfBytes);
-
-typedef struct rgb_24 {
-    uint8_t red;
-    uint8_t green;
-    uint8_t blue;
-} rgb_24;
 
 // LZW constants
 // NOTE: LZW_MAXBITS should be set to 10 or 11 for small displays, 12 for large displays

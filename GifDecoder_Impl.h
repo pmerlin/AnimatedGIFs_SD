@@ -866,7 +866,7 @@ void GifDecoder<maxGifWidth, maxGifHeight, lzwMaxBits>::decompressAndDisplayFram
 //            uint8_t *dst = (ofs < 0) ? imageBuf : imageBuf + ofs;
 //            align = (ofs < 0) ? -ofs : 0;
             int align = 0;
-            int len = lzw_decode(imageBuf + tbiImageX, tbiWidth, imageBuf + maxGifWidth - 1, align);
+            int len = lzw_decode(imageBuf + tbiImageX, tbiWidth, imageBuf + maxGifWidth, align); // remove -1
             if (len != tbiWidth) Serial.println(len);
             int xofs = (disposalMethod == DISPOSAL_BACKGROUND) ? 0 : tbiImageX;
             int wid = (disposalMethod == DISPOSAL_BACKGROUND) ? lsdWidth : tbiWidth;

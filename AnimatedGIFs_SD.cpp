@@ -11,10 +11,10 @@
 
 #define WIDTH 16
 #define HEIGHT 16
-#define LZWMAXBITS 12
+#define LZWMAXBITS 10
 #define NUM_LEDS (WIDTH * HEIGHT)
 #define BORDER_WIDTH 1
-#define USE_PALETTE565
+//#define USE_PALETTE565
 //#include "GifDecoder.h"
 #include "GifDecoder_Impl.h"
 #include "LzwDecoder_Impl.h"
@@ -239,6 +239,7 @@ void drawLineCallback565(int16_t x, int16_t y, uint8_t *buf, int16_t w, uint16_t
             pixel = buf[i++];
             if (pixel == skip) {
                 skipCount++;
+                Serial.println("Skip");
                 break;
             }
             buf565[n++] = palette565[pixel];
@@ -253,8 +254,9 @@ void drawLineCallback565(int16_t x, int16_t y, uint8_t *buf, int16_t w, uint16_t
                 uint8_t g = ((((buf565[x] >> 5) & 0x3F) * 259) + 33) >> 6;
                 uint8_t b = (((buf565[x] & 0x1F) * 527) + 23) >> 6;
 
-              drawPixel(XY(x+i-n,y),r, g, b);
+                drawPixel(XY(x+i-n,y),r, g, b);
             }
+    
 
         }
     }
@@ -298,11 +300,13 @@ void setup() {
     decoder.setScreenClearCallback(screenClearCallback);
     decoder.setUpdateScreenCallback(updateScreenCallback);
     decoder.setDrawPixelCallback(drawPixelCallback);
+/*
 #if defined(USE_PALETTE565)
     decoder.setDrawLineCallback(drawLineCallback565);
 #else
     decoder.setDrawLineCallback(drawLineCallback24);
 #endif
+*/
     int ret = initSdCard(SD_CS);
     if (ret == 0) {
         Serial.println("Using ");
