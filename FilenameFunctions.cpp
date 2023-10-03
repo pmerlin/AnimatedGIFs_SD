@@ -118,7 +118,7 @@ int enumerateGIFFiles(const char *directoryName, bool displayFilenames) {
                 Serial.print(numberOfFiles);
                 Serial.print(":");
                 Serial.print(filename);
-                Serial.print("    size:");
+                Serial.print(":    size:");
                 Serial.println(file.size());
             }
         }
@@ -186,6 +186,26 @@ void getGIFFilenameByIndex(const char *directoryName, int index, char *pnBuffer)
 #else
     directory.close();
 #endif
+}
+
+int openGifFilenameByName(const char *Name) {
+    char pathname[128];
+    strncpy(pathname, Name, 127);
+
+    if (file) file.close();
+
+    // Attempt to open the file for reading
+    #ifdef ESP8266
+        if (! (file = SPIFFS.open(pathname, "r")) )
+        {
+        Serial.println("Error opening GIF file");
+        delay(4000);
+        return -1;
+        }
+    #else
+        if (! (file = FSO.open(pathname)) ) die ("Error opening GIF file");
+    #endif
+    return 0;
 }
 
 int openGifFilenameByIndex(const char *directoryName, int index) {

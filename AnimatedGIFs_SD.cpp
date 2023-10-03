@@ -41,8 +41,8 @@ template class GifDecoder<WIDTH, HEIGHT, LZWMAXBITS>;   // .kbv tell the world.
 #include "FilenameFunctions.h"    //defines USE_SPIFFS
 
 
-#define DISPLAY_TIME_SECONDS 100  //
-#define NUMBER_FULL_CYCLES     3  //
+#define DISPLAY_TIME_SECONDS 30 //
+#define NUMBER_FULL_CYCLES     10  //
 //#define GIFWIDTH             16  //228 fails on COW_PAINT.  Edit class_implementation.cpp
 #define FLASH_SIZE      512*1024  //     
 
@@ -141,8 +141,8 @@ gif_detail_t gifs[] = {
     //M0(mad_race_gif),              //173301
     //    M0(marilyn_240x240_gif),       // 40843
 //    M0(horse_128x96x8_gif),        //  7868
-    M0(E),
-    M0(Cat),
+    M0(PiXEL),
+    M0(WiFiLogo),
 #elif FLASH_SIZE >= 256 * 1024     //Teensy3.2, Zero
     M0(teakettle_128x128x10_gif),  // 21155
     M0(bottom_128x128x17_gif),     // 51775
@@ -578,6 +578,7 @@ void loadNewImage(const char* url) {
     Serial.println("Gif Downloaded");
     imageLoaded=true;
   }
+  else Serial.println("Wifi not connected");
 }
 
 unsigned long backgroundMillis = 0;
@@ -600,6 +601,27 @@ void backgroundGIF() {
 
     int32_t now = millis();
     if (now >= futureTime || decoder.getCycleNo() > NUMBER_FULL_CYCLES) {
+        //new images
+        int good;
+        if (1)
+        {
+            loadNewImage("http://merlinux.free.fr/gifs/gif2.php");
+            good= openGifFilenameByName("/image.gif");
+        }
+        else
+        {
+            if (g_gif) good = (openGifFilenameByIndex_P(GIF_DIRECTORY, index) >= 0);
+            else good = (openGifFilenameByIndex(GIF_DIRECTORY, index) >= 0);
+
+                if (++index >= num_files) {
+                index = 0;
+                
+            }
+
+        }
+
+
+
         char buf[100];
         int32_t frameCount = decoder.getFrameCount();
         if (frameCount > 0) {   //complete animation sequence
@@ -612,13 +634,11 @@ void backgroundGIF() {
             int32_t avg_ht = rowCount / frames;
             percent = (100 * frames * framedelay) / (frame_time / 1000);
             if (percent > 100) percent = 100;
-
-            sprintf(buf, "%3d frames @%3dms %3d%% [%3d] typ: %3dx%-3d ",
+         sprintf(buf, "%3d frames @%3dms %3d%% [%3d] typ: %3dx%-3d ",
                     frameCount, framedelay, percent, frames,
                     avg_wid, avg_ht);
             Serial.print(buf);
-
-            float map = 0.001 / frames;
+         float map = 0.001 / frames;
             char ft[10], dt[10];
             dtostrf(frame_time * map, 5, 1, ft);
             dtostrf(lineTime * map, 5, 1, dt);
@@ -626,18 +646,12 @@ void backgroundGIF() {
             Serial.println(buf);
         }
         skipCount = plotCount = rowCount = lineTime = frames = frame_time = 0L;
-
         cycle_start = now;
         // Calculate time in the future to terminate animation
         futureTime = now + (DISPLAY_TIME_SECONDS * 1000);
 
-        if (++index >= num_files) {
-            index = 0;
-        }
 
-        int good;
-        if (g_gif) good = (openGifFilenameByIndex_P(GIF_DIRECTORY, index) >= 0);
-        else good = (openGifFilenameByIndex(GIF_DIRECTORY, index) >= 0);
+
         if (good >= 0) {
             /*
             tft.fillScreen(g_gif ? MAGENTA : DISKCOLOUR);
@@ -651,14 +665,14 @@ void backgroundGIF() {
 
     parse_start = micros();
     decoder.decodeFrame();
-//    FastLED.show();
-//    yield();
     frame_time += micros() - parse_start; //count it even if housekeeping block
+
     if (decoder.getFrameNo() != 0) {  //don't count the header blocks.
         frames++;
         nextFrameTime = now + decoder.getFrameDelay_ms();
         while (millis() <= nextFrameTime) yield();
     }
+
     yield();
 
 }
@@ -731,15 +745,35 @@ void setup() {
     delay(1000);
 
 
-    decoder.setScreenClearCallback(screenClearCallback);
-    decoder.setUpdateScreenCallback(updateScreenCallback);
-    decoder.setDrawPixelCallback(drawPixelCallback);
-
 #if defined(USE_PALETTE565)
     decoder.setDrawLineCallback(drawLineCallback565);
 #else
     decoder.setDrawLineCallback(drawLineCallback24);
 #endif
+    decoder.setScreenClearCallback(screenClearCallback);
+    decoder.setUpdateScreenCallback(updateScreenCallback);
+    decoder.setDrawPixelCallback(drawPixelCallback);
+
+/*
+// Playing Progmem gif
+    decoder.setFileSeekCallback(fileSeekCallback_P);
+    decoder.setFilePositionCallback(filePositionCallback_P);
+    decoder.setFileReadCallback(fileReadCallback_P);
+    decoder.setFileReadBlockCallback(fileReadBlockCallback_P);
+    g_gif = gifs[0].data;
+
+
+        decoder.setFileSeekCallback(fileSeekCallback);
+        decoder.setFilePositionCallback(filePositionCallback);
+        decoder.setFileReadCallback(fileReadCallback);
+        decoder.setFileReadBlockCallback(fileReadBlockCallback);
+
+        SPIFFS.begin();
+*/
+
+
+
+
 
     int ret = initSdCard(SD_CS);
     if (ret == 0) {
@@ -764,21 +798,49 @@ void setup() {
         }
     }
 
+/*
+    openGifFilenameByName("/PiXEL.gif");
+    decoder.startDecoding();
+    int32_t now = millis();
+    while (decoder.getCycleNo() <= 1) {
+        static unsigned long futureTime, cycle_start, nextFrameTime, frame_time, frames;
+//        char buf[100];
+//        int32_t frameCount = decoder.getFrameCount();
+//        skipCount = plotCount = rowCount = lineTime = frames = frame_time = 0L;    
+        decoder.decodeFrame();     
+    
+        parse_start = micros();
+        decoder.decodeFrame();
+        frame_time += micros() - parse_start; //count it even if housekeeping block
+
+        if (decoder.getFrameNo() != 0) {  //don't count the header blocks.
+            frames++;
+            nextFrameTime = now + decoder.getFrameDelay_ms();
+            while (millis() <= nextFrameTime) yield();
+        }
+        FastLED.show();
+        yield();
+    }
+
+    Serial.println("End Boot ");
+*/
+
     sprintf(msg, "Animated GIF files Found: %d", num_files);
     if (num_files < 0) sprintf(msg, "No directory on %s", GIF_DIRECTORY);
     if (num_files == 0) sprintf(msg, "No GIFs on %s", GIF_DIRECTORY);
     Serial.println(msg);
-    if (num_files > 0) return;
+//    if (num_files > 0) return;
 //    tft.fillScreen(RED);
 //    tft.println(msg);
 
-  FILESYSTEM.begin();
+//  FILESYSTEM.begin();
 //  gif.begin(LITTLE_ENDIAN_PIXELS);
   /*
   display.begin(16);
   display.setFastUpdate(true);
   display.setBrightness(254);
 */
+  Serial.println("Setup Wifi");
   WiFiManager wifiManager;
   // wifiManager.resetSettings();
   // TODO: increase in production
@@ -837,7 +899,7 @@ void setup() {
     setSyncProvider(getNtpTime);
     delay(4000);
   }
-  while (1) delay(10);  //does a yield()
+//  while (1) delay(10);  //does a yield()
 }
 
 
