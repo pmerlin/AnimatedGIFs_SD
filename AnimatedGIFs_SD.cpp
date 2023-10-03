@@ -18,11 +18,12 @@
 #include <FS.h>
 //#include <LittleFS.h>
 
-
+//#define DEBUG3
 
 #define WIDTH 16
 #define HEIGHT 16
-#define LZWMAXBITS 10
+
+#define LZWMAXBITS 10  /* 10 to 12 */
 #define NUM_LEDS (WIDTH * HEIGHT)
 #define BORDER_WIDTH 1
 
@@ -41,7 +42,7 @@ template class GifDecoder<WIDTH, HEIGHT, LZWMAXBITS>;   // .kbv tell the world.
 #include "FilenameFunctions.h"    //defines USE_SPIFFS
 
 
-#define DISPLAY_TIME_SECONDS 30 //
+#define DISPLAY_TIME_SECONDS 10 //
 #define NUMBER_FULL_CYCLES     10  //
 //#define GIFWIDTH             16  //228 fails on COW_PAINT.  Edit class_implementation.cpp
 #define FLASH_SIZE      512*1024  //     
@@ -209,6 +210,9 @@ void sendNTPpacket(IPAddress& address) {
 const time_t DEFAULT_TIME = 0;
 
 time_t getNtpTime() {
+#ifdef DEBUG
+Serial.println("getNtpTime Start");
+#endif
   if (WiFi.isConnected()) {
     IPAddress timeServerIP; // time.nist.gov NTP server address
     WiFi.hostByName(ntpServerName, timeServerIP);
@@ -218,7 +222,7 @@ time_t getNtpTime() {
     while (millis() - beginWait < 1500) {
       int size = udpNTP.parsePacket();
       if (size >= NTP_PACKET_SIZE) {
- //       Serial.println("Receive NTP Response");
+ //       c
         byte packetBuffer[ NTP_PACKET_SIZE];
         udpNTP.read(packetBuffer, NTP_PACKET_SIZE);  // read packet into the buffer
         unsigned long secsSince1900;
@@ -232,10 +236,17 @@ time_t getNtpTime() {
     }
   }
 //  Serial.println("No NTP Response :-(");
+#ifdef DEBUG
+Serial.println("getNtpTime Stop");
+#endif
   return DEFAULT_TIME; // return 0 if unable to get the time
 }
 
 void initOTA() {
+#ifdef DEBUG
+Serial.println("initOTA Start");
+#endif
+
   ArduinoOTA.setHostname("WemosMatrix16");
   ArduinoOTA.setPassword("wemos");
   ArduinoOTA.onStart([]() { 
@@ -254,6 +265,10 @@ void initOTA() {
   });
   ArduinoOTA.onError([](ota_error_t error) {});
   ArduinoOTA.begin();
+#ifdef DEBUG
+Serial.println("initOTA Stop");
+#endif
+
 }
 
 ESP8266WebServer webServer(80);       // Create a webserver object that listens for HTTP request on port 80
@@ -462,6 +477,9 @@ uint16_t XY(uint8_t x, uint8_t y) {
 */
 
 void displayFastLED(CRGB* colors) {
+#ifdef DEBUG
+Serial.println("displayFastLED Start");
+#endif    
     for (uint16_t y = 0; y < HEIGHT; ++y) {
       yield();
       for (uint16_t x = 0; x < WIDTH; ++x) {
@@ -472,6 +490,9 @@ void displayFastLED(CRGB* colors) {
 
       }
     }
+#ifdef DEBUG
+Serial.println("displayFastLED Stop");
+#endif    
 }
 
 void displayTime() {
@@ -479,10 +500,13 @@ void displayTime() {
     time_t utc = now();
     time_t local = CE.toLocal(utc, &tcr);
     char buffer[4];
+
+    pos_init == false;
+    letter_width = 4; 
     sprintf(buffer, "%.2d", hour(local));
-    print(buffer, 0,7,cursCol);
-   sprintf(buffer, "%.2d", minute(local));     
-    print(buffer, 0,7,cursCol);   
+    printTextPos(buffer, 0, 4,2,cursCol);
+    sprintf(buffer, "%.2d", minute(local));     
+    printTextPos(buffer, 0, 4,8,cursCol);   
 }
 
 
@@ -540,10 +564,62 @@ void backgroundPlasma2() {
 }
 
 boolean imageLoaded = false;
+/*
+void loadNewImage2()
+{
+  if((WiFiMulti.run() == WL_CONNECTED)) {
+  HTTPClient http;
+  USE_SERIAL.println("Sending Get Request to Server.......");
 
+  http.begin("http://merlinux.free.fr/gifs/gif2.php"); //HTTP URL for hosted server(local server)
+      //192.168.43.161 - HOST     PORT: 3000 and /api is the target api we need to hit to get response
+       int httpCode = http.GET();
+      // USE_SERIAL.println("After GET Request");
+       // httpCode will be negative on error
+  USE_SERIAL.println(httpCode);
+  if(httpCode > 0) {
+    if(httpCode == HTTP_CODE_OK) {
+             //HTTP_CODE_OK means code == 200
+      int len = http.getSize();
+      USE_SERIAL.println("Response type:" + http.header("Content-Type") + " - Size=" + len);
+      uint8_t buffer[128] = { 0 };
+
+      File file = SPIFFS.open("/image.gif", "w");
+      if (!file) {
+            Serial.println("There was an error opening the file for writing");
+            return;
+      }      
+      
+      WiFiClient* stream = http.getStreamPtr();
+      // read all data from server
+      while (http.connected() && (len > 0 || len == -1)) {
+        // get available data size
+        size_t size = stream->available();
+        if (size) {
+          // read up to buffer size
+          int c = stream->readBytes(buffer, ((size > sizeof(buffer)) ? sizeof(buffer) : size));
+          // write it to Serial
+          // SERIAL_DEBUG.write(buffer, c);
+          // write it to cache
+          file.write(buffer, c);
+          if (len > 0) {
+            len -= c;
+          }
+        }
+      }
+    file.close();
+    http.end();
+    }
+  }
+}
+*/
 
 void loadNewImage(const char* url) {
   // create file from url
+#ifdef DEBUG
+Serial.println("loadNewImage Start");
+#endif    
+  
   if (WiFi.isConnected()) {
     WiFiClient wclient;
     HTTPClient client;
@@ -553,11 +629,13 @@ void loadNewImage(const char* url) {
 //        Serial.printf("size: %d\n", len);
         uint8_t buff[256] = { 0 };       
         File file = FILESYSTEM.open("/image.gif", "w");
+        yield();
         if (!file) {
           Serial.println("There was an error opening the file for writing");
           return;
         } 
         while (client.connected() && (len > 0 || len == -1)) {
+            yield();
           // read up to 128 byte
           int c = wclient.readBytes(buff, std::min((size_t)len, sizeof(buff))); 
  //          Serial.printf("readBytes: %d\n", c);
@@ -579,11 +657,22 @@ void loadNewImage(const char* url) {
     imageLoaded=true;
   }
   else Serial.println("Wifi not connected");
+#ifdef DEBUG
+Serial.println("loadNewImage Stop");
+#endif    
+
 }
+
+
+//////////////////////////////////////////////////////////////////////////////////
 
 unsigned long backgroundMillis = 0;
 
 void backgroundGIF() {
+#ifdef DEBUG2
+Serial.println("backgroundGIF Start");
+#endif    
+
 /*
    if ((millis() - backgroundMillis) >= (animLength * 1000)) { // load new image
          backgroundMillis = millis();
@@ -605,10 +694,23 @@ void backgroundGIF() {
         int good;
         if (1)
         {
+#ifdef DEBUG2
+Serial.println("backgroundGIF LNI Start");
+#endif    
             loadNewImage("http://merlinux.free.fr/gifs/gif2.php");
-            good= openGifFilenameByName("/image.gif");
+            num_files = enumerateGIFFiles(GIF_DIRECTORY, true);
+            
+#ifdef DEBUG2
+Serial.println("backgroundGIF openGif Start");
+#endif    
+            
+//            good= openGifFilenameByName("/image.gif");
+#ifdef DEBUG2
+Serial.println("backgroundGIF openGif Stop");
+#endif    
+
         }
-        else
+  //      else
         {
             if (g_gif) good = (openGifFilenameByIndex_P(GIF_DIRECTORY, index) >= 0);
             else good = (openGifFilenameByIndex(GIF_DIRECTORY, index) >= 0);
@@ -620,10 +722,16 @@ void backgroundGIF() {
 
         }
 
-
+#ifdef DEBUG2
+Serial.println("backgroundGIF get FrameCount Start");
+#endif    
 
         char buf[100];
         int32_t frameCount = decoder.getFrameCount();
+#ifdef DEBUG2
+Serial.println("backgroundGIF get FrameCount Stop");
+#endif    
+
         if (frameCount > 0) {   //complete animation sequence
             int32_t framedelay = decoder.getFrameDelay_ms();
             int32_t cycle_design = framedelay * frameCount;
@@ -650,6 +758,9 @@ void backgroundGIF() {
         // Calculate time in the future to terminate animation
         futureTime = now + (DISPLAY_TIME_SECONDS * 1000);
 
+#ifdef DEBUG2
+Serial.println("backgroundGIF here");
+#endif    
 
 
         if (good >= 0) {
@@ -658,13 +769,28 @@ void backgroundGIF() {
             tft.fillRect(GIFWIDTH, 0, 1, tft.height(), WHITE);
             tft.fillRect(278, 0, 1, tft.height(), WHITE);
 */
+            yield();
+#ifdef DEBUG2
+Serial.println("backgroundGIF Start deco");
+#endif    
+            
             decoder.startDecoding();
+#ifdef DEBUG2
+Serial.println("backgroundGIF End deco");
+#endif    
 
         }
     }
 
     parse_start = micros();
+#ifdef DEBUG2
+Serial.println("backgroundGIF Start decoFrame");
+#endif    
     decoder.decodeFrame();
+#ifdef DEBUG2
+Serial.println("backgroundGIF End decoFrame");
+#endif    
+
     frame_time += micros() - parse_start; //count it even if housekeeping block
 
     if (decoder.getFrameNo() != 0) {  //don't count the header blocks.
@@ -675,18 +801,158 @@ void backgroundGIF() {
 
     yield();
 
+#ifdef DEBUG2
+Serial.println("backgroundGIF Stop");
+#endif    
+
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////
+
+
+const int rows = HEIGHT;
+const int cols = WIDTH;
+/* Flare constants */
+const uint8_t flarerows = 4;    /* number of rows (from bottom) allowed to flare */
+const uint8_t maxflare = 2;     /* max number of simultaneous flares */
+const uint8_t flarechance = 25; /* chance (%) of a new flare (if there's room) */
+const uint8_t flaredecay = 14;  /* decay rate of flare radiation; 14 is good */
+
+/* This is the map of colors from coolest (black) to hottest. Want blue flames? Go for it! */
+const uint32_t colors[] = {
+  0x000000,
+  0x000000,
+  0x100000,
+  0x200000,
+  0x300000,
+  0x400000,
+  0x600000,
+  0x700000,
+  0x800000,
+  0x900000,
+  0xA00000,
+  0xB00000,
+  0xC02000,
+  0xC02000,
+  0xC03000,
+  0xC03000,
+  0xC04000,
+  0xC04000,
+  0xC05000,
+  0xC06000,
+  0xC07000,
+  0xC08000,
+  0xC08000,
+  0xC08000,
+  0x807080,
+  0x807080,
+  0x807080
+};
+const uint8_t NCOLORS = (sizeof(colors)/sizeof(colors[0]));
+
+uint8_t pix[rows][cols];
+uint8_t nflare = 0;
+uint32_t flare[maxflare];
+
+uint32_t isqrt(uint32_t n) {
+  if ( n < 2 ) return n;
+  uint32_t smallCandidate = isqrt(n >> 2) << 1;
+  uint32_t largeCandidate = smallCandidate + 1;
+  return (largeCandidate*largeCandidate > n) ? smallCandidate : largeCandidate;
+}
+
+// Set pixels to intensity around flare
+void glow( int x, int y, int z ) {
+  int b = z * 10 / flaredecay + 1;
+  for ( int i=(y-b); i<(y+b); ++i ) {
+    for ( int j=(x-b); j<(x+b); ++j ) {
+      if ( i >=0 && j >= 0 && i < rows && j < cols ) {
+        int d = ( flaredecay * isqrt((x-j)*(x-j) + (y-i)*(y-i)) + 5 ) / 10;
+        uint8_t n = 0;
+        if ( z > d ) n = z - d;
+        if ( n > pix[i][j] ) { // can only get brighter
+          pix[i][j] = n;
+        }
+      }
+    }
+  }
+}
+
+void newflare() {
+  if ( nflare < maxflare && random(1,101) <= flarechance ) {
+    int x = random(0, cols);
+    int y = random(0, flarerows);
+    int z = NCOLORS - 1;
+    flare[nflare++] = (z<<16) | (y<<8) | (x&0xff);
+    glow( x, y, z );
+  }
+}
+
+/** make_fire() animates the fire display. It should be called from the
+ *  loop periodically (at least as often as is required to maintain the
+ *  configured refresh rate). Better to call it too often than not enough.
+ *  It will not refresh faster than the configured rate. But if you don't
+ *  call it frequently enough, the refresh rate may be lower than
+ *  configured.
+ */
+void backgroundFire() {
+  uint16_t i, j;
+ 
+  // First, move all existing heat points up the display and fade
+  for ( i=rows-1; i>0; --i ) {
+    yield();
+    for ( j=0; j<cols; ++j ) {
+      uint8_t n = 0;
+      if ( pix[i-1][j] > 0 )
+        n = pix[i-1][j] - 1;
+      pix[i][j] = n;
+    }
+  }
+
+  // Heat the bottom row
+  for ( j=0; j<cols; ++j ) {
+    i = pix[0][j];
+    if ( i > 0 ) {
+      pix[0][j] = random(NCOLORS-10, NCOLORS-2);
+    }
+  }
+
+  // flare
+  for ( i=0; i<nflare; ++i ) {
+    int x = flare[i] & 0xff;
+    int y = (flare[i] >> 8) & 0xff;
+    int z = (flare[i] >> 16) & 0xff;
+    glow( x, y, z );
+    if ( z > 1 ) {
+      flare[i] = (flare[i] & 0xffff) | ((z-1)<<16);
+    } else {
+      // This flare is out
+      for ( int j=i+1; j<nflare; ++j ) {
+        flare[j-1] = flare[j];
+      }
+      --nflare;
+    }
+    yield();
+  }
+  newflare();
+
+  // Set and draw
+  for ( i=0; i<rows; ++i ) {
+    for ( j=0; j<cols; ++j ) {
+      // colorsBACK[XY(j,rows - i - 1)] = colors[pix[i][j]];
+      uint32_t color = colors[pix[i][j]];
+      uint8_t* bcolor = (uint8_t*)&color;
+      drawPixel( XY(j, rows - i - 1), bcolor[2], bcolor[1], bcolor[0]);
+    }
+  }
+ }
 
 
 
 
 
 
-
-
-
-
+/////////////////////////////////////////////////////////////////////////////////////////
 
 
 
@@ -850,32 +1116,31 @@ void setup() {
   wifiManager.setMinimumSignalQuality(20);
   wifiManager.autoConnect(ACCESS_POINT);
 
+
  if (WiFi.isConnected()) {
     udpNTP.begin(NTP_PORT);
+  
     initOTA();
 
-   webServer.on("/intensity", HTTP_GET, []() {
+
+  webServer.on("/gif", HTTP_GET, []() { backgroundMode = 3; sendOk(); });
+  webServer.on("/black", HTTP_GET, []() { backgroundMode = 0; sendOk(); });
+  webServer.on("/grey", HTTP_GET, []() { backgroundMode = 5; sendOk(); });
+  webServer.on("/plasma", HTTP_GET, []() { backgroundMode = 1; sendOk(); });
+  webServer.on("/swirl", HTTP_GET, []() { backgroundMode = 2; sendOk(); });
+  webServer.on("/fire", HTTP_GET, []() { backgroundMode = 4; sendOk(); });
+  webServer.on("/tpm2", HTTP_GET, []() { backgroundMode = 4; sendOk(); });
+  webServer.on("/time", HTTP_GET, []() { timeMode = !timeMode; sendOk(); });
+//  webServer.on("/clocksize", HTTP_GET, []() { smallClock = !smallClock; sendOk(); });
+
+  webServer.on("/intensityplus", HTTP_GET, []() {
       String value = webServer.arg("value");
       FastLED.setBrightness(value.toInt());
       sendOk();
     });
-   webServer.on("/animlen", HTTP_GET, []() {
-      String value = webServer.arg("value");
-      animLength = value.toInt();
-      sendOk();
-    });
-   webServer.on("/bmode", HTTP_GET, []() {
-      String mode = webServer.arg("value");
-      backgroundMode = mode.toInt();
-      sendOk();
-    });
-    webServer.on("/tmode", HTTP_GET, []() {
-      String mode = webServer.arg("value");
-      timeMode = mode.toInt();
-      sendOk();
-    });
     webServer.on("/format", HTTP_GET, []() { boolean ret = FILESYSTEM.format(); sendOk(ret ? "Success" : "Failure"); });
     webServer.on("/list", HTTP_GET, []() { sendOk(fileList()); });
+   
     webServer.begin();
 
 
@@ -888,18 +1153,23 @@ void setup() {
     {
       yield();
       fillScreen(0);
-      print(WiFi.isConnected() ? WiFi.localIP().toString().c_str() : "No Wifi", 0, 2, cursCol);
+      print(WiFi.isConnected() ? WiFi.localIP().toString().c_str() : "No Wifi", 0, 5, cursCol);
       show();
     } while (millis() - prevTime < 5000);
 
 
 
-    delay(2000);
+    delay(1000);
     setSyncInterval(3600);
     setSyncProvider(getNtpTime);
-    delay(4000);
+    delay(1000);
   }
+  
 //  while (1) delay(10);  //does a yield()
+#ifdef DEBUG
+Serial.println("Setup Stop");
+#endif    
+
 }
 
 
@@ -980,11 +1250,22 @@ void loop2() {
 
 }
 
-
+///////////////////////////////////////////////////////////////////////////////////
 
 void loop() {
+#ifdef DEBUG
+Serial.println("Loop Start");
+#endif    
    ArduinoOTA.handle();
+#ifdef DEBUG
+Serial.println("OTA finished");
+#endif    
+
    webServer.handleClient();
+#ifdef DEBUG
+Serial.println("Web finished");
+#endif    
+
    switch (backgroundMode) {
     case 0: // blank
       clearDisplay(); 
@@ -1006,7 +1287,11 @@ void loop() {
 //       Serial.println("loop");
        break;
 
-       case 4: // uniform color
+      case 4: // Fire
+       backgroundFire();
+       break;
+
+       case 5: // uniform color
        fill_solid(colorsBACK, NUM_LEDS, CRGB::HotPink);
         displayFastLED(colorsBACK);
         default:
@@ -1017,6 +1302,9 @@ void loop() {
       displayTime();
     FastLED.show();
 //    delay(20);
+#ifdef DEBUG
+Serial.println("Loop Stop");
+#endif    
 }
 
 

@@ -749,13 +749,32 @@ int GifDecoder<maxGifWidth, maxGifHeight, lzwMaxBits>::decodeFrame(void) {
         fileSeekCallback(0);
 
         // parse Gif Header like with a new file
+#ifdef DEBUG3
+Serial.println("Before ParseGif");
+#endif    
         parseGifHeader();
-
+#ifdef DEBUG3
+Serial.println("After ParseGif");
+#endif    
         // Parse the logical screen descriptor
+#ifdef DEBUG3
+Serial.println("before Logical screendesc");
+#endif    
+       
         parseLogicalScreenDescriptor();
+#ifdef DEBUG3
+Serial.println("after Logical screendesc");
+#endif    
 
         // Parse the global color table
+#ifdef DEBUG3
+Serial.println("before parseGlobalColTab");
+#endif    
         parseGlobalColorTable();
+#ifdef DEBUG3
+Serial.println("after parseGlobalColTab");
+#endif    
+
     }
 
     return result;
