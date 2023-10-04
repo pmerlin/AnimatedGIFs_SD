@@ -23,7 +23,7 @@
 #define WIDTH 16
 #define HEIGHT 16
 
-#define LZWMAXBITS 10  /* 10 to 12 */
+#define LZWMAXBITS 12  /* 10 to 12 */
 #define NUM_LEDS (WIDTH * HEIGHT)
 #define BORDER_WIDTH 1
 
@@ -42,7 +42,7 @@ template class GifDecoder<WIDTH, HEIGHT, LZWMAXBITS>;   // .kbv tell the world.
 #include "FilenameFunctions.h"    //defines USE_SPIFFS
 
 
-#define DISPLAY_TIME_SECONDS 10 //
+#define DISPLAY_TIME_SECONDS 20 //
 #define NUMBER_FULL_CYCLES     10  //
 //#define GIFWIDTH             16  //228 fails on COW_PAINT.  Edit class_implementation.cpp
 #define FLASH_SIZE      512*1024  //     
@@ -629,13 +629,13 @@ Serial.println("loadNewImage Start");
 //        Serial.printf("size: %d\n", len);
         uint8_t buff[256] = { 0 };       
         File file = FILESYSTEM.open("/image.gif", "w");
-        yield();
+//        yield();
         if (!file) {
           Serial.println("There was an error opening the file for writing");
           return;
         } 
         while (client.connected() && (len > 0 || len == -1)) {
-            yield();
+//            yield();
           // read up to 128 byte
           int c = wclient.readBytes(buff, std::min((size_t)len, sizeof(buff))); 
  //          Serial.printf("readBytes: %d\n", c);
@@ -688,30 +688,37 @@ Serial.println("backgroundGIF Start");
     //    int index = random(num_files);
     static int index = -1;
 
-    int32_t now = millis();
-    if (now >= futureTime || decoder.getCycleNo() > NUMBER_FULL_CYCLES) {
+    int32_t now = millis(), cycle;
+//    char tmp[30];
+    cycle=decoder.getCycleNo();
+//    sprintf(tmp, "Cycle: %d", cycle);
+//    Serial.println(tmp);
+
+    if (cycle >1 && (now >= futureTime || cycle > NUMBER_FULL_CYCLES) ) {
         //new images
         int good;
-        if (1)
+//        if (WiFi.isConnected())
+        if(0)
         {
 #ifdef DEBUG2
 Serial.println("backgroundGIF LNI Start");
 #endif    
             loadNewImage("http://merlinux.free.fr/gifs/gif2.php");
-            num_files = enumerateGIFFiles(GIF_DIRECTORY, true);
+//            num_files = enumerateGIFFiles(GIF_DIRECTORY, true);
             
 #ifdef DEBUG2
 Serial.println("backgroundGIF openGif Start");
 #endif    
             
-//            good= openGifFilenameByName("/image.gif");
+            good= openGifFilenameByName("/image.gif");
 #ifdef DEBUG2
 Serial.println("backgroundGIF openGif Stop");
 #endif    
 
         }
-  //      else
+        else
         {
+            Serial.println("No Wifi for download");
             if (g_gif) good = (openGifFilenameByIndex_P(GIF_DIRECTORY, index) >= 0);
             else good = (openGifFilenameByIndex(GIF_DIRECTORY, index) >= 0);
 
@@ -972,6 +979,7 @@ void setup() {
 	Serial.print( F("Flash Size: ") ); Serial.println(ESP.getFlashChipRealSize());
 	Serial.print( F("Vcc: ") ); Serial.println(ESP.getVcc());
 	Serial.println();
+  
   #endif
 //  fixPal(sprites_pal, sizeof(sprites_pal) / sizeof(CRGB)); //16
 
@@ -1095,7 +1103,7 @@ void setup() {
     if (num_files < 0) sprintf(msg, "No directory on %s", GIF_DIRECTORY);
     if (num_files == 0) sprintf(msg, "No GIFs on %s", GIF_DIRECTORY);
     Serial.println(msg);
-//    if (num_files > 0) return;
+    //if (num_files > 0) return;
 //    tft.fillScreen(RED);
 //    tft.println(msg);
 
@@ -1282,6 +1290,7 @@ Serial.println("Web finished");
         break;
 
       case 3: // GIF
+       //clearDisplay();
        backgroundGIF();
 //       displayFastLED(colorsBACK);
 //       Serial.println("loop");
