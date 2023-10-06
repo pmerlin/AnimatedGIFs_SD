@@ -13,6 +13,7 @@
 #ifdef USE_SPIFFS
 #if defined(ESP8266)
 #include "FS.h"
+//#include <LittleFS.h>
 #define USE_SPIFFS_DIR
 #elif defined(ESP32)
 #include <SPIFFS.h>
@@ -59,7 +60,7 @@ int initSdCard(int chipSelectPin) {
     int state = digitalRead(chipSelectPin);
     pinMode(chipSelectPin, OUTPUT);
     if (state == 0) return -1;
-    if (!SPIFFS.begin())
+    if (!FILESYSTEM.begin())
         return -1;
 #else
     // if you want to force PROGMEM instead of SD,  remove the SD from socket.
@@ -96,7 +97,7 @@ int enumerateGIFFiles(const char *directoryName, bool displayFilenames) {
     numberOfFiles = 0;
 #ifdef USE_SPIFFS_DIR
     File file;
-    Dir directory = SPIFFS.openDir(directoryName);
+    Dir directory = FILESYSTEM.openDir(directoryName);
     //    if (!directory == 0) return -1;
 
     while (directory.next()) {
@@ -145,7 +146,7 @@ void getGIFFilenameByIndex(const char *directoryName, int index, char *pnBuffer)
         return;
 
 #ifdef USE_SPIFFS_DIR
-    Dir directory = SPIFFS.openDir(directoryName);
+    Dir directory = FILESYSTEM.openDir(directoryName);
     //    if (!directory) return;
 
     while (directory.next() && (index >= 0)) {
@@ -196,14 +197,14 @@ int openGifFilenameByName(const char *Name) {
 
     // Attempt to open the file for reading
     #ifdef ESP8266
-        if (! (file = SPIFFS.open(pathname, "r")) )
+        if (! (file = FILESYSTEM.open(pathname, "r")) )
         {
         Serial.println("Error opening GIF file");
         delay(4000);
         return -1;
         }
     #else
-        if (! (file = FSO.open(pathname)) ) die ("Error opening GIF file");
+        if (! (file = FILESYSTEM.open(pathname)) ) die ("Error opening GIF file");
     #endif
     return 0;
 }
@@ -221,7 +222,7 @@ int openGifFilenameByIndex(const char *directoryName, int index) {
 
     // Attempt to open the file for reading
 #ifdef USE_SPIFFS
-    file = SPIFFS.open(pathname, "r");
+    file = FILESYSTEM.open(pathname, "r");
 #else
     file = SD.open(pathname);
 #endif

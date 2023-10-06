@@ -15,19 +15,18 @@
 /* #include <Ticker.h> */
 #include <Timezone.h>
 #include <ArduinoOTA.h>
-#include <FS.h>
-//#include <LittleFS.h>
 
 //#define DEBUG3
 
 #define WIDTH 16
 #define HEIGHT 16
 
-#define LZWMAXBITS 12  /* 10 to 12 */
+#define LZWMAXBITS 10  /* 10 to 12 */
 #define NUM_LEDS (WIDTH * HEIGHT)
 #define BORDER_WIDTH 1
 
-
+#include <FS.h>
+//#include <LittleFS.h>
 //#define FILESYSTEM LittleFS
 #define FILESYSTEM SPIFFS
 
@@ -142,8 +141,8 @@ gif_detail_t gifs[] = {
     //M0(mad_race_gif),              //173301
     //    M0(marilyn_240x240_gif),       // 40843
 //    M0(horse_128x96x8_gif),        //  7868
-    M0(PiXEL),
-    M0(WiFiLogo),
+    M0(pixel),
+    M0(wifilogo),
 #elif FLASH_SIZE >= 256 * 1024     //Teensy3.2, Zero
     M0(teakettle_128x128x10_gif),  // 21155
     M0(bottom_128x128x17_gif),     // 51775
@@ -584,7 +583,7 @@ void loadNewImage2()
       USE_SERIAL.println("Response type:" + http.header("Content-Type") + " - Size=" + len);
       uint8_t buffer[128] = { 0 };
 
-      File file = SPIFFS.open("/image.gif", "w");
+      File file = FILESYSTEM.open("/image.gif", "w");
       if (!file) {
             Serial.println("There was an error opening the file for writing");
             return;
@@ -614,12 +613,68 @@ void loadNewImage2()
 }
 */
 
+
+void loadNewImage2(const char* url) {
+  // create file from url
+#ifdef DEBUG
+Serial.println("loadNewImage Start");
+#endif    
+  unsigned long download_time =   millis();
+  char tmp[50];
+
+  if (WiFi.isConnected()) {
+    WiFiClient wclient;
+    HTTPClient client;
+    if (client.begin(wclient, url)) {
+      if (client.GET() > 0) {
+        int len = client.getSize();
+//        Serial.printf("size: %d\n", len);
+        uint8_t buff[256] = { 0 };       
+        File file = FILESYSTEM.open("/image2.gif", "w");
+//        yield();
+        if (!file) {
+          Serial.println("There was an error opening the file for writing");
+          return;
+        } 
+        while (client.connected() && (len > 0 || len == -1)) {
+//            yield();
+          // read up to 128 byte
+          int c = wclient.readBytes(buff, std::min((size_t)len, sizeof(buff))); 
+ //          Serial.printf("readBytes: %d\n", c);
+          if (!c) {
+ //           Serial.println("read timeout");
+          }
+          // write it to File
+          file.write(buff, c);
+
+          if (len > 0) {
+            len -= c;
+          }  
+        }
+        file.close();
+      }  
+    }
+    client.end();
+    download_time= millis()-download_time;
+    sprintf(tmp, "Gif Downloaded in %ld sec", download_time/1000);
+    Serial.println(tmp);
+    imageLoaded=true;
+  }
+  else Serial.println("Wifi not connected");
+#ifdef DEBUG
+Serial.println("loadNewImage Stop");
+#endif    
+
+}
+
 void loadNewImage(const char* url) {
   // create file from url
 #ifdef DEBUG
 Serial.println("loadNewImage Start");
 #endif    
-  
+  unsigned long download_time =   millis();
+  char tmp[50];
+
   if (WiFi.isConnected()) {
     WiFiClient wclient;
     HTTPClient client;
@@ -653,7 +708,9 @@ Serial.println("loadNewImage Start");
       }  
     }
     client.end();
-    Serial.println("Gif Downloaded");
+    download_time= millis()-download_time;
+    sprintf(tmp, "Gif Downloaded in %ld sec", download_time/1000);
+    Serial.println(tmp);
     imageLoaded=true;
   }
   else Serial.println("Wifi not connected");
@@ -697,8 +754,8 @@ Serial.println("backgroundGIF Start");
     if (cycle >1 && (now >= futureTime || cycle > NUMBER_FULL_CYCLES) ) {
         //new images
         int good;
-//        if (WiFi.isConnected())
-        if(0)
+        if (WiFi.isConnected())
+//        if(0)
         {
 #ifdef DEBUG2
 Serial.println("backgroundGIF LNI Start");
@@ -1042,7 +1099,7 @@ void setup() {
         decoder.setFileReadCallback(fileReadCallback);
         decoder.setFileReadBlockCallback(fileReadBlockCallback);
 
-        SPIFFS.begin();
+        FILESYSTEM.begin();
 */
 
 
@@ -1072,15 +1129,73 @@ void setup() {
         }
     }
 
+
+
+        openGifFilenameByName("/pixel.gif");
+
+
 /*
-    openGifFilenameByName("/PiXEL.gif");
+        static unsigned long futureTime, cycle_start, nextFrameTime, frame_time, frames; 
+        int32_t now = millis();
+        char buf[100];
+        int32_t frameCount = decoder.getFrameCount();
+
+        if (frameCount > 0) {   //complete animation sequence
+            int32_t framedelay = decoder.getFrameDelay_ms();
+            int32_t cycle_design = framedelay * frameCount;
+            int32_t cycle_time = now - cycle_start;
+            int32_t percent = (100 * cycle_design) / cycle_time;
+            int32_t skipcent = plotCount ? (100 * skipCount) / (plotCount) : 0;
+            int32_t avg_wid = rowCount ? plotCount / rowCount : 0;
+            int32_t avg_ht = rowCount / frames;
+            percent = (100 * frames * framedelay) / (frame_time / 1000);
+            if (percent > 100) percent = 100;
+            sprintf(buf, "%3d frames @%3dms %3d%% [%3d] typ: %3dx%-3d ",
+                    frameCount, framedelay, percent, frames,
+                    avg_wid, avg_ht);
+            Serial.print(buf);
+            float map = 0.001 / frames;
+            char ft[10], dt[10];
+            dtostrf(frame_time * map, 5, 1, ft);
+            dtostrf(lineTime * map, 5, 1, dt);
+            sprintf(buf, "avg:%sms draw:%sms %d%%", ft, dt, skipcent);
+            Serial.println(buf);
+        }
+
+        skipCount = plotCount = rowCount = lineTime = frames = frame_time = 0L;
+        cycle_start = now;
+        // Calculate time in the future to terminate animation
+        futureTime = now + (DISPLAY_TIME_SECONDS * 1000);
+
+
+        decoder.startDecoding();
+        while(now < futureTime && decoder.getCycleNo() <= 1) {
+    
+          parse_start = micros();
+          decoder.decodeFrame();
+
+          frame_time += micros() - parse_start; //count it even if housekeeping block
+
+          if (decoder.getFrameNo() != 0) {  //don't count the header blocks.
+            frames++;
+            nextFrameTime = now + decoder.getFrameDelay_ms();
+            while (millis() <= nextFrameTime) yield();
+          }
+          yield();
+          FastLED.show();
+          delay(20);
+          now = millis();
+        }
+        decoder.startDecoding();
+
+*/
+
+
+    openGifFilenameByName("/pixel.gif");
     decoder.startDecoding();
     int32_t now = millis();
     while (decoder.getCycleNo() <= 1) {
         static unsigned long futureTime, cycle_start, nextFrameTime, frame_time, frames;
-//        char buf[100];
-//        int32_t frameCount = decoder.getFrameCount();
-//        skipCount = plotCount = rowCount = lineTime = frames = frame_time = 0L;    
         decoder.decodeFrame();     
     
         parse_start = micros();
@@ -1092,12 +1207,13 @@ void setup() {
             nextFrameTime = now + decoder.getFrameDelay_ms();
             while (millis() <= nextFrameTime) yield();
         }
+        delay(30);
         FastLED.show();
         yield();
     }
-
+    
     Serial.println("End Boot ");
-*/
+
 
     sprintf(msg, "Animated GIF files Found: %d", num_files);
     if (num_files < 0) sprintf(msg, "No directory on %s", GIF_DIRECTORY);
@@ -1114,6 +1230,29 @@ void setup() {
   display.setFastUpdate(true);
   display.setBrightness(254);
 */
+
+    openGifFilenameByName("/wifi.gif");
+    decoder.startDecoding();
+    now = millis();
+    while (decoder.getCycleNo() <= 2) {
+        static unsigned long futureTime, cycle_start, nextFrameTime, frame_time, frames;
+        decoder.decodeFrame();     
+    
+        parse_start = micros();
+        decoder.decodeFrame();
+        frame_time += micros() - parse_start; //count it even if housekeeping block
+
+        if (decoder.getFrameNo() != 0) {  //don't count the header blocks.
+            frames++;
+            nextFrameTime = now + decoder.getFrameDelay_ms();
+            while (millis() <= nextFrameTime) yield();
+        }
+        delay(30);
+        FastLED.show();
+        yield();
+    }
+
+
   Serial.println("Setup Wifi");
   WiFiManager wifiManager;
   // wifiManager.resetSettings();
@@ -1159,25 +1298,25 @@ void setup() {
     pos_init = false;
     do
     {
-      yield();
-      fillScreen(0);
+      yield();     
       print(WiFi.isConnected() ? WiFi.localIP().toString().c_str() : "No Wifi", 0, 5, cursCol);
       show();
+      fillScreen(0);
     } while (millis() - prevTime < 5000);
 
 
 
-    delay(1000);
+//    delay(1000);
     setSyncInterval(3600);
     setSyncProvider(getNtpTime);
-    delay(1000);
+//    delay(1000);
   }
   
 //  while (1) delay(10);  //does a yield()
 #ifdef DEBUG
 Serial.println("Setup Stop");
 #endif    
-
+decoder.startDecoding();
 }
 
 
@@ -1186,7 +1325,7 @@ Serial.println("Setup Stop");
 
 
 
-
+/*
 void loop2() {
     static unsigned long futureTime, cycle_start, nextFrameTime, frame_time, frames;
 
@@ -1234,11 +1373,11 @@ void loop2() {
         if (g_gif) good = (openGifFilenameByIndex_P(GIF_DIRECTORY, index) >= 0);
         else good = (openGifFilenameByIndex(GIF_DIRECTORY, index) >= 0);
         if (good >= 0) {
-            /*
-            tft.fillScreen(g_gif ? MAGENTA : DISKCOLOUR);
-            tft.fillRect(GIFWIDTH, 0, 1, tft.height(), WHITE);
-            tft.fillRect(278, 0, 1, tft.height(), WHITE);
-*/
+            
+//            tft.fillScreen(g_gif ? MAGENTA : DISKCOLOUR);
+//            tft.fillRect(GIFWIDTH, 0, 1, tft.height(), WHITE);
+//            tft.fillRect(278, 0, 1, tft.height(), WHITE);
+
             decoder.startDecoding();
 
         }
@@ -1257,7 +1396,7 @@ void loop2() {
     yield();
 
 }
-
+*/
 ///////////////////////////////////////////////////////////////////////////////////
 
 void loop() {
@@ -1273,6 +1412,56 @@ Serial.println("OTA finished");
 #ifdef DEBUG
 Serial.println("Web finished");
 #endif    
+
+  unsigned long download_time =   millis();
+  char tmp[50];
+/*
+  if (WiFi.isConnected()) {
+    WiFiClient wclient;
+    HTTPClient client;
+    if (client.begin(wclient, "http://merlinux.free.fr/gifs/gif2.php")) {
+      if (client.GET() > 0) {
+        int len = client.getSize();
+//        Serial.printf("size: %d\n", len);
+        uint8_t buff[256] = { 0 };       
+        File file = FILESYSTEM.open("/image2.gif", "w");
+//        yield();
+        if (!file) {
+          Serial.println("There was an error opening the file for writing");
+          return;
+        } 
+        while (client.connected() && (len > 0 || len == -1)) {
+//            yield();
+          // read up to 128 byte
+          int c = wclient.readBytes(buff, std::min((size_t)len, sizeof(buff))); 
+ //          Serial.printf("readBytes: %d\n", c);
+          if (!c) {
+ //           Serial.println("read timeout");
+          }
+          // write it to File
+          file.write(buff, c);
+
+          if (len > 0) {
+            len -= c;
+          }  
+        }
+        file.close();
+      }  
+    }
+    client.end();
+    download_time= millis()-download_time;
+    sprintf(tmp, "Gif2 Downloaded in %ld sec", download_time/1000);
+    Serial.println(tmp);
+    imageLoaded=true;
+  }
+  else Serial.println("Wifi not connected");
+#ifdef DEBUG
+Serial.println("loadNewImage Stop");
+#endif    
+
+*/
+
+
 
    switch (backgroundMode) {
     case 0: // blank

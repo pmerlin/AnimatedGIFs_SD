@@ -1,7 +1,9 @@
 #ifndef FILENAME_FUNCTIONS_H
 #define FILENAME_FUNCTIONS_H
 
-//#define USE_SPIFFS
+
+//#define FILESYSTEM LittleFS
+#define FILESYSTEM SPIFFS
 
 int enumerateGIFFiles(const char *directoryName, bool displayFilenames);
 void getGIFFilenameByIndex(const char *directoryName, int index, char *pnBuffer);
