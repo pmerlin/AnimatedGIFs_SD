@@ -345,7 +345,7 @@ void drawPixelCallback(int16_t x, int16_t y, uint8_t red, uint8_t green, uint8_t
 
 void drawLineCallback24(int16_t x, int16_t y, uint8_t *buf, int16_t w, rgb_24 *palette, int16_t skip) {
     uint8_t pixel;
-    bool first;
+//    bool first;
     int32_t t = micros();
 /*
     if (y >= tft.height() || x >= tft.width() ) return;
@@ -366,7 +366,7 @@ void drawLineCallback24(int16_t x, int16_t y, uint8_t *buf, int16_t w, rgb_24 *p
         }
         if (n) {
 //            tft.setAddrWindow(x + i - n, y, endx, y);
-            first = true;
+//            first = true;
 //            tft.pushColors(buf565, n, first);
             for (int x=0; x<n; x++)
               drawPixel(XY(x+i-n,y),buf24[x].red, buf24[x].green, buf24[x].blue);
@@ -387,7 +387,7 @@ void drawLineCallback565(int16_t x, int16_t y, uint8_t *buf, int16_t w, uint16_t
     if (x + w > tft.width()) w = tft.width() - x;
 */    
     if (w <= 0) return;
-    int16_t endx = x + w - 1;
+//    int16_t endx = x + w - 1;
     uint16_t buf565[w];
     for (int i = 0; i < w; ) {
         int n = 0;
@@ -500,7 +500,7 @@ void displayTime() {
     time_t local = CE.toLocal(utc, &tcr);
     char buffer[4];
 
-    pos_init == false;
+    pos_init = false;
     letter_width = 4; 
     sprintf(buffer, "%.2d", hour(local));
     printTextPos(buffer, 0, 4,2,cursCol);
@@ -562,111 +562,6 @@ void backgroundPlasma2() {
   }
 }
 
-boolean imageLoaded = false;
-/*
-void loadNewImage2()
-{
-  if((WiFiMulti.run() == WL_CONNECTED)) {
-  HTTPClient http;
-  USE_SERIAL.println("Sending Get Request to Server.......");
-
-  http.begin("http://merlinux.free.fr/gifs/gif2.php"); //HTTP URL for hosted server(local server)
-      //192.168.43.161 - HOST     PORT: 3000 and /api is the target api we need to hit to get response
-       int httpCode = http.GET();
-      // USE_SERIAL.println("After GET Request");
-       // httpCode will be negative on error
-  USE_SERIAL.println(httpCode);
-  if(httpCode > 0) {
-    if(httpCode == HTTP_CODE_OK) {
-             //HTTP_CODE_OK means code == 200
-      int len = http.getSize();
-      USE_SERIAL.println("Response type:" + http.header("Content-Type") + " - Size=" + len);
-      uint8_t buffer[128] = { 0 };
-
-      File file = FILESYSTEM.open("/image.gif", "w");
-      if (!file) {
-            Serial.println("There was an error opening the file for writing");
-            return;
-      }      
-      
-      WiFiClient* stream = http.getStreamPtr();
-      // read all data from server
-      while (http.connected() && (len > 0 || len == -1)) {
-        // get available data size
-        size_t size = stream->available();
-        if (size) {
-          // read up to buffer size
-          int c = stream->readBytes(buffer, ((size > sizeof(buffer)) ? sizeof(buffer) : size));
-          // write it to Serial
-          // SERIAL_DEBUG.write(buffer, c);
-          // write it to cache
-          file.write(buffer, c);
-          if (len > 0) {
-            len -= c;
-          }
-        }
-      }
-    file.close();
-    http.end();
-    }
-  }
-}
-*/
-
-
-void loadNewImage2(const char* url) {
-  // create file from url
-#ifdef DEBUG
-Serial.println("loadNewImage Start");
-#endif    
-  unsigned long download_time =   millis();
-  char tmp[50];
-
-  if (WiFi.isConnected()) {
-    WiFiClient wclient;
-    HTTPClient client;
-    if (client.begin(wclient, url)) {
-      if (client.GET() > 0) {
-        int len = client.getSize();
-//        Serial.printf("size: %d\n", len);
-        uint8_t buff[256] = { 0 };       
-        File file = FILESYSTEM.open("/image2.gif", "w");
-//        yield();
-        if (!file) {
-          Serial.println("There was an error opening the file for writing");
-          return;
-        } 
-        while (client.connected() && (len > 0 || len == -1)) {
-//            yield();
-          // read up to 128 byte
-          int c = wclient.readBytes(buff, std::min((size_t)len, sizeof(buff))); 
- //          Serial.printf("readBytes: %d\n", c);
-          if (!c) {
- //           Serial.println("read timeout");
-          }
-          // write it to File
-          file.write(buff, c);
-
-          if (len > 0) {
-            len -= c;
-          }  
-        }
-        file.close();
-      }  
-    }
-    client.end();
-    download_time= millis()-download_time;
-    sprintf(tmp, "Gif Downloaded in %ld sec", download_time/1000);
-    Serial.println(tmp);
-    imageLoaded=true;
-  }
-  else Serial.println("Wifi not connected");
-#ifdef DEBUG
-Serial.println("loadNewImage Stop");
-#endif    
-
-}
-
 void loadNewImage(const char* url) {
   // create file from url
 #ifdef DEBUG
@@ -682,7 +577,7 @@ Serial.println("loadNewImage Start");
       if (client.GET() > 0) {
         int len = client.getSize();
 //        Serial.printf("size: %d\n", len);
-        uint8_t buff[256] = { 0 };       
+        uint8_t buff[128] = { 0 };       
         File file = FILESYSTEM.open("/image.gif", "w");
 //        yield();
         if (!file) {
@@ -711,7 +606,6 @@ Serial.println("loadNewImage Start");
     download_time= millis()-download_time;
     sprintf(tmp, "Gif Downloaded in %ld sec", download_time/1000);
     Serial.println(tmp);
-    imageLoaded=true;
   }
   else Serial.println("Wifi not connected");
 #ifdef DEBUG
@@ -768,6 +662,7 @@ Serial.println("backgroundGIF openGif Start");
 #endif    
             
             good= openGifFilenameByName("/image.gif");
+
 #ifdef DEBUG2
 Serial.println("backgroundGIF openGif Stop");
 #endif    
@@ -1085,117 +980,18 @@ void setup() {
     decoder.setUpdateScreenCallback(updateScreenCallback);
     decoder.setDrawPixelCallback(drawPixelCallback);
 
-/*
+
 // Playing Progmem gif
     decoder.setFileSeekCallback(fileSeekCallback_P);
     decoder.setFilePositionCallback(filePositionCallback_P);
     decoder.setFileReadCallback(fileReadCallback_P);
     decoder.setFileReadBlockCallback(fileReadBlockCallback_P);
-    g_gif = gifs[0].data;
-
-
-        decoder.setFileSeekCallback(fileSeekCallback);
-        decoder.setFilePositionCallback(filePositionCallback);
-        decoder.setFileReadCallback(fileReadCallback);
-        decoder.setFileReadBlockCallback(fileReadBlockCallback);
-
-        FILESYSTEM.begin();
-*/
-
-
-
-
-
-    int ret = initSdCard(SD_CS);
-    if (ret == 0) {
-        Serial.println("Using ");
-        decoder.setFileSeekCallback(fileSeekCallback);
-        decoder.setFilePositionCallback(filePositionCallback);
-        decoder.setFileReadCallback(fileReadCallback);
-        decoder.setFileReadBlockCallback(fileReadBlockCallback);
-        num_files = enumerateGIFFiles(GIF_DIRECTORY, true);
-    }
-    if (ret != 0 || num_files == 0) {
-        if (num_files == 0) sprintf(msg, "No GIF files on SD card");
-        else sprintf(msg, "No SD card on CS:%d", SD_CS);
-        Serial.println(msg);
-        decoder.setFileSeekCallback(fileSeekCallback_P);
-        decoder.setFilePositionCallback(filePositionCallback_P);
-        decoder.setFileReadCallback(fileReadCallback_P);
-        decoder.setFileReadBlockCallback(fileReadBlockCallback_P);
-        g_gif = gifs[0].data;
-        for (num_files = 0; num_files < sizeof(gifs) / sizeof(*gifs); num_files++) {
-            Serial.println(gifs[num_files].name);
-        }
-    }
-
-
-
-        openGifFilenameByName("/pixel.gif");
-
-
-/*
-        static unsigned long futureTime, cycle_start, nextFrameTime, frame_time, frames; 
-        int32_t now = millis();
-        char buf[100];
-        int32_t frameCount = decoder.getFrameCount();
-
-        if (frameCount > 0) {   //complete animation sequence
-            int32_t framedelay = decoder.getFrameDelay_ms();
-            int32_t cycle_design = framedelay * frameCount;
-            int32_t cycle_time = now - cycle_start;
-            int32_t percent = (100 * cycle_design) / cycle_time;
-            int32_t skipcent = plotCount ? (100 * skipCount) / (plotCount) : 0;
-            int32_t avg_wid = rowCount ? plotCount / rowCount : 0;
-            int32_t avg_ht = rowCount / frames;
-            percent = (100 * frames * framedelay) / (frame_time / 1000);
-            if (percent > 100) percent = 100;
-            sprintf(buf, "%3d frames @%3dms %3d%% [%3d] typ: %3dx%-3d ",
-                    frameCount, framedelay, percent, frames,
-                    avg_wid, avg_ht);
-            Serial.print(buf);
-            float map = 0.001 / frames;
-            char ft[10], dt[10];
-            dtostrf(frame_time * map, 5, 1, ft);
-            dtostrf(lineTime * map, 5, 1, dt);
-            sprintf(buf, "avg:%sms draw:%sms %d%%", ft, dt, skipcent);
-            Serial.println(buf);
-        }
-
-        skipCount = plotCount = rowCount = lineTime = frames = frame_time = 0L;
-        cycle_start = now;
-        // Calculate time in the future to terminate animation
-        futureTime = now + (DISPLAY_TIME_SECONDS * 1000);
-
-
-        decoder.startDecoding();
-        while(now < futureTime && decoder.getCycleNo() <= 1) {
     
-          parse_start = micros();
-          decoder.decodeFrame();
-
-          frame_time += micros() - parse_start; //count it even if housekeeping block
-
-          if (decoder.getFrameNo() != 0) {  //don't count the header blocks.
-            frames++;
-            nextFrameTime = now + decoder.getFrameDelay_ms();
-            while (millis() <= nextFrameTime) yield();
-          }
-          yield();
-          FastLED.show();
-          delay(20);
-          now = millis();
-        }
-        decoder.startDecoding();
-
-*/
-
-
-    openGifFilenameByName("/pixel.gif");
+    g_gif = gifs[0].data;
     decoder.startDecoding();
     int32_t now = millis();
     while (decoder.getCycleNo() <= 1) {
-        static unsigned long futureTime, cycle_start, nextFrameTime, frame_time, frames;
+        static unsigned long  nextFrameTime, frame_time, frames;
         decoder.decodeFrame();     
     
         parse_start = micros();
@@ -1211,14 +1007,31 @@ void setup() {
         FastLED.show();
         yield();
     }
+
+    g_gif = gifs[1].data;
+    decoder.startDecoding();
+    now = millis();
+    while (decoder.getCycleNo() <= 1) {
+        static unsigned long nextFrameTime, frame_time, frames;
+        decoder.decodeFrame();     
     
-    Serial.println("End Boot ");
+        parse_start = micros();
+        decoder.decodeFrame();
+        frame_time += micros() - parse_start; //count it even if housekeeping block
+
+        if (decoder.getFrameNo() != 0) {  //don't count the header blocks.
+            frames++;
+            nextFrameTime = now + decoder.getFrameDelay_ms();
+            while (millis() <= nextFrameTime) yield();
+        }
+        delay(30);
+        FastLED.show();
+        yield();
+    }
 
 
-    sprintf(msg, "Animated GIF files Found: %d", num_files);
-    if (num_files < 0) sprintf(msg, "No directory on %s", GIF_DIRECTORY);
-    if (num_files == 0) sprintf(msg, "No GIFs on %s", GIF_DIRECTORY);
-    Serial.println(msg);
+
+
     //if (num_files > 0) return;
 //    tft.fillScreen(RED);
 //    tft.println(msg);
@@ -1231,26 +1044,6 @@ void setup() {
   display.setBrightness(254);
 */
 
-    openGifFilenameByName("/wifi.gif");
-    decoder.startDecoding();
-    now = millis();
-    while (decoder.getCycleNo() <= 2) {
-        static unsigned long futureTime, cycle_start, nextFrameTime, frame_time, frames;
-        decoder.decodeFrame();     
-    
-        parse_start = micros();
-        decoder.decodeFrame();
-        frame_time += micros() - parse_start; //count it even if housekeeping block
-
-        if (decoder.getFrameNo() != 0) {  //don't count the header blocks.
-            frames++;
-            nextFrameTime = now + decoder.getFrameDelay_ms();
-            while (millis() <= nextFrameTime) yield();
-        }
-        delay(30);
-        FastLED.show();
-        yield();
-    }
 
 
   Serial.println("Setup Wifi");
@@ -1313,155 +1106,66 @@ void setup() {
   }
   
 //  while (1) delay(10);  //does a yield()
-#ifdef DEBUG
-Serial.println("Setup Stop");
-#endif    
-decoder.startDecoding();
-}
 
 
+    int ret = initSdCard(SD_CS);
+    if (ret == 0) {
+        Serial.println("Using ");
+        decoder.setFileSeekCallback(fileSeekCallback);
+        decoder.setFilePositionCallback(filePositionCallback);
+        decoder.setFileReadCallback(fileReadCallback);
+        decoder.setFileReadBlockCallback(fileReadBlockCallback);
+        num_files = enumerateGIFFiles(GIF_DIRECTORY, true);
+        openGifFilenameByName("/image.gif");
+    }
+    if (ret != 0 || num_files == 0) {
+        if (num_files == 0) sprintf(msg, "No GIF files on SD card");
+        else sprintf(msg, "No SD card on CS:%d", SD_CS);
+        Serial.println(msg);
+        decoder.setFileSeekCallback(fileSeekCallback_P);
+        decoder.setFilePositionCallback(filePositionCallback_P);
+        decoder.setFileReadCallback(fileReadCallback_P);
+        decoder.setFileReadBlockCallback(fileReadBlockCallback_P);
+        g_gif = gifs[0].data;
+        for (num_files = 0; num_files < sizeof(gifs) / sizeof(*gifs); num_files++) {
+            Serial.println(gifs[num_files].name);
+        }
+    }
 
-
-
-
+    sprintf(msg, "Animated GIF files Found: %d", num_files);
+    if (num_files < 0) sprintf(msg, "No directory on %s", GIF_DIRECTORY);
+    if (num_files == 0) sprintf(msg, "No GIFs on %s", GIF_DIRECTORY);
+    Serial.println(msg);
 
 /*
-void loop2() {
-    static unsigned long futureTime, cycle_start, nextFrameTime, frame_time, frames;
-
-    //    int index = random(num_files);
-    static int index = -1;
-
-    int32_t now = millis();
-    if (now >= futureTime || decoder.getCycleNo() > NUMBER_FULL_CYCLES) {
-        char buf[100];
-        int32_t frameCount = decoder.getFrameCount();
-        if (frameCount > 0) {   //complete animation sequence
-            int32_t framedelay = decoder.getFrameDelay_ms();
-            int32_t cycle_design = framedelay * frameCount;
-            int32_t cycle_time = now - cycle_start;
-            int32_t percent = (100 * cycle_design) / cycle_time;
-            int32_t skipcent = plotCount ? (100 * skipCount) / (plotCount) : 0;
-            int32_t avg_wid = rowCount ? plotCount / rowCount : 0;
-            int32_t avg_ht = rowCount / frames;
-            percent = (100 * frames * framedelay) / (frame_time / 1000);
-            if (percent > 100) percent = 100;
-
-            sprintf(buf, "%3d frames @%3dms %3d%% [%3d] typ: %3dx%-3d ",
-                    frameCount, framedelay, percent, frames,
-                    avg_wid, avg_ht);
-            Serial.print(buf);
-
-            float map = 0.001 / frames;
-            char ft[10], dt[10];
-            dtostrf(frame_time * map, 5, 1, ft);
-            dtostrf(lineTime * map, 5, 1, dt);
-            sprintf(buf, "avg:%sms draw:%sms %d%%", ft, dt, skipcent);
-            Serial.println(buf);
-        }
-        skipCount = plotCount = rowCount = lineTime = frames = frame_time = 0L;
-
-        cycle_start = now;
-        // Calculate time in the future to terminate animation
-        futureTime = now + (DISPLAY_TIME_SECONDS * 1000);
-
-        if (++index >= num_files) {
-            index = 0;
-        }
-
-        int good;
-        if (g_gif) good = (openGifFilenameByIndex_P(GIF_DIRECTORY, index) >= 0);
-        else good = (openGifFilenameByIndex(GIF_DIRECTORY, index) >= 0);
-        if (good >= 0) {
-            
-//            tft.fillScreen(g_gif ? MAGENTA : DISKCOLOUR);
-//            tft.fillRect(GIFWIDTH, 0, 1, tft.height(), WHITE);
-//            tft.fillRect(278, 0, 1, tft.height(), WHITE);
-
-            decoder.startDecoding();
-
-        }
-    }
-
-    parse_start = micros();
-    decoder.decodeFrame();
-    FastLED.show();
-    yield();
-    frame_time += micros() - parse_start; //count it even if housekeeping block
-    if (decoder.getFrameNo() != 0) {  //don't count the header blocks.
-        frames++;
-        nextFrameTime = now + decoder.getFrameDelay_ms();
-        while (millis() <= nextFrameTime) yield();
-    }
-    yield();
-
+if (openGifFilenameByName("/image.gif") == -1)
+{
+  loadNewImage("http://merlinux.free.fr/gifs/gif2.php");
+  openGifFilenameByName("/image.gif");
 }
 */
+
+decoder.startDecoding();
+
+#ifdef DEBUG
+Serial.println("Setup Stop");
+#endif 
+
+
+}
+
+
+
+
+
+
+
+
 ///////////////////////////////////////////////////////////////////////////////////
 
 void loop() {
-#ifdef DEBUG
-Serial.println("Loop Start");
-#endif    
    ArduinoOTA.handle();
-#ifdef DEBUG
-Serial.println("OTA finished");
-#endif    
-
    webServer.handleClient();
-#ifdef DEBUG
-Serial.println("Web finished");
-#endif    
-
-  unsigned long download_time =   millis();
-  char tmp[50];
-/*
-  if (WiFi.isConnected()) {
-    WiFiClient wclient;
-    HTTPClient client;
-    if (client.begin(wclient, "http://merlinux.free.fr/gifs/gif2.php")) {
-      if (client.GET() > 0) {
-        int len = client.getSize();
-//        Serial.printf("size: %d\n", len);
-        uint8_t buff[256] = { 0 };       
-        File file = FILESYSTEM.open("/image2.gif", "w");
-//        yield();
-        if (!file) {
-          Serial.println("There was an error opening the file for writing");
-          return;
-        } 
-        while (client.connected() && (len > 0 || len == -1)) {
-//            yield();
-          // read up to 128 byte
-          int c = wclient.readBytes(buff, std::min((size_t)len, sizeof(buff))); 
- //          Serial.printf("readBytes: %d\n", c);
-          if (!c) {
- //           Serial.println("read timeout");
-          }
-          // write it to File
-          file.write(buff, c);
-
-          if (len > 0) {
-            len -= c;
-          }  
-        }
-        file.close();
-      }  
-    }
-    client.end();
-    download_time= millis()-download_time;
-    sprintf(tmp, "Gif2 Downloaded in %ld sec", download_time/1000);
-    Serial.println(tmp);
-    imageLoaded=true;
-  }
-  else Serial.println("Wifi not connected");
-#ifdef DEBUG
-Serial.println("loadNewImage Stop");
-#endif    
-
-*/
-
-
 
    switch (backgroundMode) {
     case 0: // blank

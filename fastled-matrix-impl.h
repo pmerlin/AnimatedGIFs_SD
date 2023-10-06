@@ -106,7 +106,7 @@ uint16_t XY(uint8_t x, uint8_t y)
 
 uint16_t XY(uint8_t x, uint8_t y)
 {
-  uint16_t t = 0;
+  
 
   //ROTATION
   //  t = x;
@@ -114,6 +114,7 @@ uint16_t XY(uint8_t x, uint8_t y)
   //  y = t;
 
 /*  
+  uint16_t t = 0;
   switch(rotation) {
    case 1:
     t = x;

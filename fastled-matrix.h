@@ -39,18 +39,18 @@
 uint16_t BLACK = (uint16_t)0x000000;
 uint16_t GREEN = (uint16_t)0x00FF00;
 uint16_t LGREEN = (uint16_t)0x007700;
-uint16_t RED = 0xFF0000;
-uint16_t BLUE = 0x0000FF;
-uint16_t YELLOW = 0xFFFF00;
-uint16_t LBLUE = 0x00FFFF;
-uint16_t PURPLE = 0xFF00FF;
-uint16_t LPURPLE = 0x770077;
-uint16_t WHITE = 0xFFFFFF;
-uint16_t LWHITE = 0x777777;
+uint16_t RED = (uint16_t)0xFF0000;
+uint16_t BLUE = (uint16_t)0x0000FF;
+uint16_t YELLOW = (uint16_t)0xFFFF00;
+uint16_t LBLUE = (uint16_t)0x00FFFF;
+uint16_t PURPLE = (uint16_t)0xFF00FF;
+uint16_t LPURPLE = (uint16_t)0x770077;
+uint16_t WHITE = (uint16_t)0xFFFFFF;
+uint16_t LWHITE = (uint16_t)0x777777;
 
-uint16_t myWHITE = 0xFFFFFF;
-uint16_t myBLACK = 0x000000;
-uint16_t myGREY =  0x888888;
+uint16_t myWHITE = (uint16_t)0xFFFFFF;
+uint16_t myBLACK = (uint16_t)0x000000;
+uint16_t myGREY =  (uint16_t)0x888888;
 
 
 
