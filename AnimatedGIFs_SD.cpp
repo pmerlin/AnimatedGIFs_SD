@@ -914,6 +914,213 @@ void backgroundFire() {
 /////////////////////////////////////////////////////////////////////////////////////////
 
 
+/*
+void back_draw() {
+  static float offsetX = 0;
+  static float offsetY = 0;
+  static uint8_t hue = 0;
+
+  offsetX = beatsin16(6, -180, 180) ;
+  offsetY = beatsin16(6, -180, 180, 12000);
+
+  EVERY_N_MILLISECONDS(200) {
+    hue++;
+  }
+
+  for (int x = 0; x < WIDTH; x++) {
+    for (int y = 0; y < HEIGHT; y++) {
+      float hue = x * beatsin16(10, 1, 10) + offsetY;
+      leds[XY(x,y)] = CHSV(hue, 200, sin8(x * 30 + offsetX));
+      hue = y * 3 + offsetX;
+      leds[XY(x,y)] += CHSV(hue, 200, sin8(y * 30 + offsetY));
+
+//      float hue = x * beatsin16(10, 1, 10) + offsetY + beatsin16(y, 1, 255);
+//      leds[XY(x,y)] = CHSV(hue, 200, sin8((x*y)));
+      //leds[index+random16(3)] += CHSV(hue, 120, sin8(x*y));
+
+      //hue = y * 3 ; // + offsetX;
+      //leds[index] += CHSV(hue, 200, sin8(y+ offsetY/200));
+    }
+  }
+}
+*/
+/*
+static const uint8_t exp_gamma[256] = {
+0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   1,   1,   1,
+1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,
+1,   2,   2,   2,   2,   2,   2,   2,   2,   2,   3,   3,   3,   3,   3,
+4,   4,   4,   4,   4,   5,   5,   5,   5,   5,   6,   6,   6,   7,   7,
+7,   7,   8,   8,   8,   9,   9,   9,   10,  10,  10,  11,  11,  12,  12,
+12,  13,  13,  14,  14,  14,  15,  15,  16,  16,  17,  17,  18,  18,  19,
+19,  20,  20,  21,  21,  22,  23,  23,  24,  24,  25,  26,  26,  27,  28,
+28,  29,  30,  30,  31,  32,  32,  33,  34,  35,  35,  36,  37,  38,  39,
+39,  40,  41,  42,  43,  44,  44,  45,  46,  47,  48,  49,  50,  51,  52,
+53,  54,  55,  56,  57,  58,  59,  60,  61,  62,  63,  64,  65,  66,  67,
+68,  70,  71,  72,  73,  74,  75,  77,  78,  79,  80,  82,  83,  84,  85,
+87,  89,  91,  92,  93,  95,  96,  98,  99,  100, 101, 102, 105, 106, 108,
+109, 111, 112, 114, 115, 117, 118, 120, 121, 123, 125, 126, 128, 130, 131,
+133, 135, 136, 138, 140, 142, 143, 145, 147, 149, 151, 152, 154, 156, 158,
+160, 162, 164, 165, 167, 169, 171, 173, 175, 177, 179, 181, 183, 185, 187,
+190, 192, 194, 196, 198, 200, 202, 204, 207, 209, 211, 213, 216, 218, 220,
+222, 225, 227, 229, 232, 234, 236, 239, 241, 244, 246, 249, 251, 253, 254,
+255};
+
+void back_draw() {
+
+ int a = millis()/8;
+ for (int x = 0; x < WIDTH; x++) {
+   for (int y = 0; y < HEIGHT; y++) {
+     int index = XY(x, y);
+     leds[index].b=exp_gamma [sin8((x-8)*cos8((y+20)*4)/4+a)];
+     leds[index].g=exp_gamma [(sin8(x*16+a/3)+cos8(y*8+a/2))/2];
+     leds[index].r=exp_gamma [sin8(cos8(x*8+a/3)+sin8(y*8+a/4)+a)];
+   }
+}
+}
+*/
+/////////////////////////////////////
+// anneau
+/*
+void back_draw() {
+  static byte tt,uu;
+  byte i;
+    tt=millis()/15;
+    uu=tt*2;
+    for(i=13;i--;)
+      leds[XY(sin8(tt+i*20)>>4,sin8(uu+i*20)>>4)].setHue(i*19);
+    blur2d(leds,16,16,32);
+
+}
+*/
+////////////////////////////////
+const uint8_t matrixWidth = WIDTH;
+const uint8_t matrixHeight = HEIGHT;
+
+//#define NUM_LEDS N_LEDS //matrixWidth * matrixHeight
+
+// Palette definitions
+static CRGBPalette16 currentPalette;
+static CRGBPalette16 targetPalette;
+
+// These initial values show the whole thing on the matrix.
+static float reAl = -.5;               // Relatively close to https://mandel.gart.nz/#/
+static float imAg = 0.1;
+static float zoOm = 550.;
+
+
+// Calculated start/stop coordinates.
+static float xmin, ymin, xmax, ymax;   // Our window.
+static float dx;                       // Delta x is mapped to the matrix size.
+static float dy;                       // Delta y is mapped to the matrix size.
+
+static int maxIterations = 15;        // How many iterations per pixel before we give up. Make it 8 bits to match our range of colours.
+static float maxCalc = 16.0;           // How big is each calculation allowed to be before we give up.
+
+
+void resize() {                           // Resize the minimum and maximum values on the fly to display.
+
+//  reAl = -1.304605388;                    // Try another location.
+//  imAg = 0.;
+//  zoOm = 92682.;
+
+//  zoOm = 5000 * abs(sin((float)millis()/2000.))+400;   // Animate the zoom.
+static float delta=-1;
+
+
+zoOm+=delta;
+if(zoOm<1) delta = 1;
+if(zoOm>600) delta = -11;
+
+
+char tmp[20];
+sprintf(tmp, "%f", zoOm);
+Serial.println(tmp);
+
+
+
+
+  const float zoomAdj = .0016;             // Adjust zoom factor so that it's compatible with https://mandel.gart.nz/#/
+  const float xadj = 0.;                   // Same for x and y values.
+  const float yadj = .001;
+  
+  xmin = reAl - 1./zoOm/zoomAdj+xadj;     // Scale the windows in accordance with the zoom factor.
+  xmax = reAl + 1./zoOm/zoomAdj+xadj;
+  ymin = imAg - 1./zoOm/zoomAdj+yadj;
+  ymax = imAg + 1./zoOm/zoomAdj+yadj;
+
+  dx = (xmax - xmin) / (matrixWidth);     // Scale the delta x and y values to our matrix size.
+  dy = (ymax - ymin) / (matrixHeight);
+
+} // resize()
+
+
+
+void mandel() {                             // Calculate and display the Mandelbrot set for the current window.
+  // Start y
+  float y = ymin;
+  for (int j = 0; j < matrixHeight; j++) {
+    
+    // Start x
+    float x = xmin;
+    for (int i = 0; i < matrixWidth; i++) {
+  
+      // Now we test, as we iterate z = z^2 + c does z tend towards infinity?
+      float a = x;
+      float b = y;
+      int iter = 0;
+  
+      while (iter < maxIterations) {    // Here we determine whether or not we're out of bounds.
+        float aa = a * a;
+        float bb = b * b;
+        float len = aa + bb;
+        if (len > maxCalc) {            // |z| = sqrt(a^2+b^2) OR z^2 = a^2+b^2 to save on having to perform a square root.
+          break;  // Bail
+        }
+        
+       // This operation corresponds to z -> z^2+c where z=a+ib c=(x,y). Remember to use 'foil'.      
+        b = 2*a*b + y;
+        a = aa - bb + x;
+        iter++;
+      } // while
+  
+      // We color each pixel based on how long it takes to get to infinity, or black if it never gets there.
+      if (iter == maxIterations) {
+        leds[XY(i,j)] = CRGB::Black;            // Calculation kept on going, so it was within the set.
+      } else {
+        leds[XY(i,j)] = CHSV(iter*255/maxIterations,255,255);   // Near the edge of the set.
+      }
+      x += dx;
+    }
+    y += dy;
+  }
+
+//  blur2d( leds, matrixWidth, matrixHeight, 64);
+
+} // mandel()
+
+void back_draw() {
+
+  resize();                               // Define the window to display.
+  mandel();                               // Calculate and display that window.
+
+  //FastLED.show();                         // FastLED now displays the results.
+  
+} // loop()
+
+///////////////////////////
+/*
+CRGB d[256];
+byte i,t,u;
+void setup(){LEDS.addLeds<WS2812,3,GRB>(d,256);}
+void loop(){
+    t=millis()/15;
+    u=t*2;
+    for(i=13;i--;)
+      d[XY(sin8(t+i*20)>>4,sin8(u+i*20)>>4)].setHue(i*19);blur2d(d,16,16,32);
+    LEDS.show();
+  }
+*/
+////
 
 // Setup method runs once, when the sketch starts
 void setup() {
@@ -944,7 +1151,7 @@ void setup() {
 */  
     FastLED.addLeds<FAST_LED_CHIPSET, FASTLED_DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalSMD5050);
     FastLED.setBrightness(BRIGHTNESS);
-
+/*
     leds[0] = CRGB(255, 0, 0); //0,1
     leds[1] = CRGB(0, 255, 0); //0,2
     leds[2] = CRGB(0, 255, 0); //0,3
@@ -969,7 +1176,7 @@ void setup() {
     FastLED.show();
     Serial.println("Wifi");
     delay(1000);
-
+*/
 
 #if defined(USE_PALETTE565)
     decoder.setDrawLineCallback(drawLineCallback565);
@@ -1003,10 +1210,12 @@ void setup() {
             nextFrameTime = now + decoder.getFrameDelay_ms();
             while (millis() <= nextFrameTime) yield();
         }
-        delay(30);
+        delay(50);
         FastLED.show();
         yield();
     }
+
+    
 
     g_gif = gifs[1].data;
     decoder.startDecoding();
@@ -1024,11 +1233,11 @@ void setup() {
             nextFrameTime = now + decoder.getFrameDelay_ms();
             while (millis() <= nextFrameTime) yield();
         }
-        delay(30);
+        delay(50);
         FastLED.show();
         yield();
     }
-
+    copyScreen(colorsBACK, leds);
 
 
 
@@ -1070,6 +1279,7 @@ void setup() {
   webServer.on("/swirl", HTTP_GET, []() { backgroundMode = 2; sendOk(); });
   webServer.on("/fire", HTTP_GET, []() { backgroundMode = 4; sendOk(); });
   webServer.on("/tpm2", HTTP_GET, []() { backgroundMode = 4; sendOk(); });
+  webServer.on("/draw", HTTP_GET, []() { backgroundMode = 6; sendOk(); });
   webServer.on("/time", HTTP_GET, []() { timeMode = !timeMode; sendOk(); });
 //  webServer.on("/clocksize", HTTP_GET, []() { smallClock = !smallClock; sendOk(); });
 
@@ -1094,7 +1304,8 @@ void setup() {
       yield();     
       print(WiFi.isConnected() ? WiFi.localIP().toString().c_str() : "No Wifi", 0, 5, cursCol);
       show();
-      fillScreen(0);
+//      fillScreen(0, 5);
+      displayFastLED(colorsBACK);
     } while (millis() - prevTime < 5000);
 
 
@@ -1198,8 +1409,13 @@ void loop() {
         displayFastLED(colorsBACK);
         default:
          break;
-      }
-      yield();
+
+      case 6: // Anim
+       back_draw();
+       break;
+   }
+
+//      yield();
    if (timeMode == 1) 
       displayTime();
     FastLED.show();

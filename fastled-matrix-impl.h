@@ -78,19 +78,21 @@ void fillScreen(uint32_t color)
     leds[i] = CRGB(color);
 }
 
+
+
 void clearDisplay()
 {
   fillScreen(0x000000);
 }
 
-/*
-void copyScreen()
+
+void copyScreen(CRGB *s1, CRGB*s2)
 {
   uint16_t i;
   for (i = 0; i < NUM_LEDS; i++)
-    leds[i] = leds2[i];
+    s1[i] = s2[i];
 }
-*/
+
 
 #ifdef VERTICAL
 uint16_t XY(uint8_t x, uint8_t y)
@@ -149,6 +151,14 @@ uint16_t XY(uint8_t x, uint8_t y)
 
 }
 #endif
+
+void fillScreen(uint32_t color, uint8_t y)
+{
+  uint16_t i;
+  for (i = 0; i < 80 /* NUM_LEDS*/; i++)
+    leds[i] = CRGB(color);
+}
+
 
 void drawPixel(int16_t x, int16_t y, uint32_t color, bool transparent)
 {
